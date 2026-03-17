@@ -47,6 +47,28 @@
                     </h2>
                 </div>
 
+                <!-- Countdown Timer & Swimmer Progress -->
+                <div class="flex flex-col items-center -mt-8 relative z-10 mb-2">
+                    <div class="bg-[#448b90] rounded-full px-5 py-2 flex items-center gap-2 text-white shadow-lg border-2 border-[#71c4c9] mb-4">
+                        <i data-lucide="timer" class="w-4 h-4 text-[#b0e0e3]"></i>
+                        <span id="countdown-timer" class="text-xs font-black tracking-widest uppercase">CALCULATING...</span>
+                    </div>
+                    
+                    <!-- Fun Swimmer Progress Line -->
+                    <div class="w-full max-w-[220px] relative h-8 flex items-center">
+                        <!-- Dashed Lane Rope -->
+                        <div class="w-full h-0 border-b-2 border-dashed border-white/40 relative z-0"></div>
+                        
+                        <!-- Moving Swimmer (Flipped to swim left-to-right) -->
+                        <div id="swimmer-icon" class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 -scale-x-100 text-3xl transition-all duration-1000 ease-linear z-10" style="left: 0%;">
+                            🏊
+                        </div>
+                        
+                        <!-- End Wall marker -->
+                        <div class="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-5 bg-white rounded-full z-10 shadow-sm opacity-80"></div>
+                    </div>
+                </div>
+
                 <!-- Facility Filters (Styled as pills) -->
                 <div class="flex justify-center gap-2 mb-2">
                     <button id="filter-CRAC" onclick="setFacilityFilter('CRAC')" class="px-5 py-2.5 rounded-full font-bold uppercase text-xs tracking-wider transition-all duration-300 bg-white text-[#53a3a8] shadow-md transform scale-105">
@@ -271,6 +293,9 @@
         let usersData = [];
         let lapsData = [];
         let currentFacilityFilter = 'CRAC';
+        let challengeStartTime = null;
+        let challengeEndTime = null;
+        let timerInterval = null;
         
         // UI Interaction Logic
         window.switchTab = (tab) => {
@@ -395,12 +420,83 @@
         // Data Fetching
         let unsubscribeUsers = null;
         let unsubscribeLaps = null;
+        let unsubscribeSettings = null;
+
+        const calculateDefaultStartTime = () => {
+            const now = new Date();
+            // Defaults to the very first second of the current month
+            return new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0).getTime();
+        };
+
+        const calculateDefaultEndTime = () => {
+            const now = new Date();
+            // Defaults to the very last second of the current month
+            return new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).getTime();
+        };
+
+        const updateCountdown = () => {
+            const timerEl = document.getElementById('countdown-timer');
+            const swimmerEl = document.getElementById('swimmer-icon');
+            if (!timerEl) return;
+
+            const now = new Date().getTime();
+            const start = challengeStartTime || calculateDefaultStartTime();
+            const target = challengeEndTime || calculateDefaultEndTime();
+            
+            const distance = target - now;
+            const totalDuration = target - start;
+            const elapsed = now - start;
+
+            // Calculate and clamp progress for the little swimmer
+            let progress = (elapsed / totalDuration) * 100;
+            progress = Math.max(0, Math.min(100, progress));
+            
+            if (swimmerEl) {
+                swimmerEl.style.left = `${progress}%`;
+            }
+
+            if (distance < 0) {
+                timerEl.innerText = "CHALLENGE ENDED";
+                if (swimmerEl) swimmerEl.style.left = "100%";
+                return;
+            }
+
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            timerEl.innerText = `${days}D ${hours.toString().padStart(2, '0')}H ${minutes.toString().padStart(2, '0')}M ${seconds.toString().padStart(2, '0')}S`;
+        };
 
         const fetchData = () => {
             if (!currentUser) return;
 
             if (unsubscribeUsers) unsubscribeUsers();
             if (unsubscribeLaps) unsubscribeLaps();
+            if (unsubscribeSettings) unsubscribeSettings();
+
+            // Start countdown loop
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(updateCountdown, 1000);
+
+            // Fetch Admin Settings for custom dates
+            const settingsRef = collection(db, 'artifacts', appId, 'public', 'data', 'appSettings');
+            unsubscribeSettings = onSnapshot(settingsRef, (snapshot) => {
+                const configDoc = snapshot.docs.find(d => d.id === 'challengeConfig');
+                if (configDoc && configDoc.data().endTime) {
+                    challengeEndTime = new Date(configDoc.data().endTime).getTime();
+                } else {
+                    challengeEndTime = calculateDefaultEndTime();
+                }
+                
+                if (configDoc && configDoc.data().startTime) {
+                    challengeStartTime = new Date(configDoc.data().startTime).getTime();
+                } else {
+                    challengeStartTime = calculateDefaultStartTime();
+                }
+                updateCountdown();
+            }, (err) => console.error("Settings error:", err));
 
             const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'lapUsers');
             unsubscribeUsers = onSnapshot(usersRef, (snapshot) => {
