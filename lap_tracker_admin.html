@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Service Portal | Lap Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .view-content { display: none; }
+        .view-content.active { display: block; }
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 font-sans text-slate-900 pb-20 min-h-screen">
+
+    <!-- Admin Header (No Print) -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-10 no-print">
+        <div class="max-w-5xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <i data-lucide="shield" class="text-amber-500 w-6 h-6"></i>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">Staff Portal: Lap Tracker</h1>
+                    <p class="text-xs text-slate-300">Internal Customer Service Tools</p>
+                </div>
+            </div>
+            <nav class="flex space-x-2 bg-slate-800 p-1 rounded-lg">
+                <button id="btn-view-approvals" class="px-4 py-2 rounded-md text-sm font-medium transition-colors bg-amber-600 text-white" onclick="switchView('approvals')">
+                    Approvals (<span id="pending-count">0</span>)
+                </button>
+                <button id="btn-view-manual" class="px-4 py-2 rounded-md text-sm font-medium transition-colors hover:bg-slate-700" onclick="switchView('manual')">
+                    Log Laps for Patron
+                </button>
+                <button id="btn-view-qr" class="px-4 py-2 rounded-md text-sm font-medium transition-colors hover:bg-slate-700" onclick="switchView('qr')">
+                    Sign-up QR Codes
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 py-8">
+        
+        <!-- Loading State -->
+        <div id="loading-state" class="text-center py-12 text-slate-500 no-print">
+            <i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600"></i>
+            Loading Secure Data...
+        </div>
+
+        <!-- Approvals View -->
+        <div id="view-approvals" class="view-content no-print bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h3 class="text-xl font-bold mb-4">Pending Name Approvals</h3>
+            <p class="text-sm text-slate-600 mb-6">Review new users to ensure names are appropriate for public display on the leaderboards.</p>
+            
+            <div id="approvals-list" class="space-y-3">
+                <!-- Populated via JS -->
+            </div>
+            <div id="approvals-empty" class="hidden text-center p-8 text-slate-500 bg-slate-50 rounded-lg">
+                All caught up! No pending approvals.
+            </div>
+        </div>
+
+        <!-- Manual Entry View -->
+        <div id="view-manual" class="view-content no-print bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h3 class="text-xl font-bold mb-4">Customer Service Lap Entry</h3>
+            <p class="text-sm text-slate-600 mb-6">Look up patrons who don't use the app to add laps to their total.</p>
+            
+            <div id="manual-search-section">
+                <div class="relative">
+                    <i data-lucide="search" class="absolute left-3 top-3 text-slate-400 w-5 h-5"></i>
+                    <input type="text" id="patron-search" placeholder="Search approved patron by name..." class="w-full pl-10 p-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div id="search-results" class="mt-4 border border-slate-200 rounded-lg overflow-hidden hidden">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+
+            <div id="manual-entry-section" class="hidden bg-slate-50 p-6 rounded-lg border border-slate-200 mt-4">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h4 class="font-bold text-lg text-slate-800">Adding Laps for <span id="selected-patron-name"></span></h4>
+                        <p class="text-sm text-slate-500">Current Total: <span id="selected-patron-total"></span></p>
+                    </div>
+                    <button onclick="clearSelectedPatron()" class="text-sm text-slate-500 hover:text-slate-800">Cancel</button>
+                </div>
+                
+                <form id="admin-log-form" class="flex gap-4">
+                    <input type="number" id="admin-lap-count" placeholder="Number of laps" min="1" class="flex-1 p-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500" required>
+                    <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-md font-medium hover:bg-blue-700">
+                        Submit Laps
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- QR Codes View (Printable) -->
+        <div id="view-qr" class="view-content bg-white rounded-xl shadow-sm border border-slate-200 p-6 text-center space-y-6">
+            <h3 class="text-xl font-bold no-print">Facility Sign-up QR Codes</h3>
+            <p class="text-sm text-slate-600 max-w-lg mx-auto no-print">
+                Print these to display at the front desk. Patrons can scan them with their phones to instantly open the tracker and achieve their fitness goals.
+            </p>
+            
+            <div class="grid sm:grid-cols-2 gap-8 mt-8">
+                <!-- CRAC -->
+                <div class="border border-slate-200 p-6 rounded-xl space-y-4 print:border-none">
+                    <h4 class="font-bold text-2xl text-slate-800">Clarence Regional Aquatic Centre</h4>
+                    <p class="text-md text-slate-600 font-medium pb-4 border-b border-slate-100">State-of-the-art regional facility</p>
+                    <div class="bg-white inline-block p-4 border border-slate-100 shadow-sm rounded-lg mx-auto">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https%3A%2F%2Fclarencevalley.gov.au%2Flaptracker" alt="CRAC QR Code" class="mx-auto w-48 h-48">
+                    </div>
+                    <p class="text-sm font-bold text-slate-700 mt-4">Scan to log your laps!</p>
+                    <button onclick="window.print()" class="mt-4 text-blue-600 font-medium text-sm flex items-center justify-center gap-2 w-full hover:underline no-print">
+                        <i data-lucide="printer" class="w-4 h-4"></i> Print Posters
+                    </button>
+                </div>
+                
+                <!-- YCP -->
+                <div class="border border-slate-200 p-6 rounded-xl space-y-4 print:border-none print:break-before-page">
+                    <h4 class="font-bold text-2xl text-slate-800">Yamba Community Pool</h4>
+                    <p class="text-md text-slate-600 font-medium pb-4 border-b border-slate-100">Welcoming, heated community haven</p>
+                    <div class="bg-white inline-block p-4 border border-slate-100 shadow-sm rounded-lg mx-auto">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https%3A%2F%2Fclarencevalley.gov.au%2Flaptracker" alt="YCP QR Code" class="mx-auto w-48 h-48">
+                    </div>
+                    <p class="text-sm font-bold text-slate-700 mt-4">Scan to log your laps!</p>
+                    <button onclick="window.print()" class="mt-4 text-blue-600 font-medium text-sm flex items-center justify-center gap-2 w-full hover:underline no-print">
+                        <i data-lucide="printer" class="w-4 h-4"></i> Print Posters
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-slate-800 text-white px-6 py-3 rounded-lg shadow-lg items-center gap-2 hidden transition-opacity duration-300 opacity-0 z-50 no-print">
+        <i data-lucide="info" class="w-5 h-5 text-amber-400 inline-block align-middle mr-2"></i>
+        <span id="toast-msg" class="text-sm font-medium align-middle"></span>
+    </div>
+
+    <!-- Firebase Scripts -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        let currentUser = null;
+        let usersData = [];
+        let lapsData = [];
+        let selectedPatronId = null;
+
+        window.switchView = (view) => {
+            document.querySelectorAll('.view-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(`view-${view}`).classList.add('active');
+            
+            const btnClassBase = "px-4 py-2 rounded-md text-sm font-medium transition-colors";
+            document.getElementById('btn-view-approvals').className = `${btnClassBase} ${view === 'approvals' ? 'bg-amber-600 text-white' : 'hover:bg-slate-700 text-white'}`;
+            document.getElementById('btn-view-manual').className = `${btnClassBase} ${view === 'manual' ? 'bg-amber-600 text-white' : 'hover:bg-slate-700 text-white'}`;
+            document.getElementById('btn-view-qr').className = `${btnClassBase} ${view === 'qr' ? 'bg-amber-600 text-white' : 'hover:bg-slate-700 text-white'}`;
+        };
+
+        const showToast = (msg) => {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.remove('opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.classList.add('hidden'), 300);
+            }, 3000);
+        };
+
+        // Initialize Firebase
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'clarence-valley-laps';
+
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.error("Auth error:", err);
+            }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('loading-state').classList.add('hidden');
+                document.getElementById('view-approvals').classList.add('active');
+                lucide.createIcons();
+                fetchData();
+            }
+        });
+
+        initAuth();
+
+        const fetchData = () => {
+            if (!currentUser) return;
+            const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'lapUsers');
+            onSnapshot(usersRef, (snapshot) => {
+                usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderUI();
+            }, (err) => console.error("Users error:", err));
+
+            const lapsRef = collection(db, 'artifacts', appId, 'public', 'data', 'laps');
+            onSnapshot(lapsRef, (snapshot) => {
+                lapsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderUI();
+            }, (err) => console.error("Laps error:", err));
+        };
+
+        const getAggregatedData = () => {
+            return usersData.map(u => {
+                const userLaps = lapsData.filter(l => l.userId === u.id);
+                const totalLaps = userLaps.reduce((sum, lap) => sum + (Number(lap.count) || 0), 0);
+                return { ...u, totalLaps };
+            });
+        };
+
+        // --- Approvals Logic ---
+        window.approveUser = async (userId) => {
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'lapUsers', userId);
+            await updateDoc(userRef, { isApproved: true });
+            showToast("Patron name approved for public display.");
+        };
+
+        const renderApprovals = () => {
+            const pending = usersData.filter(u => !u.isApproved);
+            document.getElementById('pending-count').innerText = pending.length;
+            
+            const listContainer = document.getElementById('approvals-list');
+            const emptyState = document.getElementById('approvals-empty');
+
+            if (pending.length === 0) {
+                listContainer.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+            } else {
+                listContainer.classList.remove('hidden');
+                emptyState.classList.add('hidden');
+                listContainer.innerHTML = pending.map(u => `
+                    <div class="flex items-center justify-between p-4 border border-slate-200 rounded-lg bg-slate-50">
+                        <div>
+                            <p class="font-bold text-slate-800">${u.publicName}</p>
+                            <p class="text-xs text-slate-500">Facility: ${u.facility === 'CRAC' ? 'Clarence Regional Aquatic Centre' : 'Yamba Community Pool'}</p>
+                        </div>
+                        <button onclick="approveUser('${u.id}')" class="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 flex items-center gap-1">
+                            <i data-lucide="check" class="w-4 h-4"></i> Approve
+                        </button>
+                    </div>
+                `).join('');
+                lucide.createIcons();
+            }
+        };
+
+        // --- Manual Entry Logic ---
+        window.selectPatron = (id, name, total) => {
+            selectedPatronId = id;
+            document.getElementById('manual-search-section').classList.add('hidden');
+            document.getElementById('manual-entry-section').classList.remove('hidden');
+            document.getElementById('selected-patron-name').innerText = name;
+            document.getElementById('selected-patron-total').innerText = total;
+            document.getElementById('admin-lap-count').value = '';
+        };
+
+        window.clearSelectedPatron = () => {
+            selectedPatronId = null;
+            document.getElementById('manual-search-section').classList.remove('hidden');
+            document.getElementById('manual-entry-section').classList.add('hidden');
+            document.getElementById('patron-search').value = '';
+            document.getElementById('search-results').classList.add('hidden');
+        };
+
+        document.getElementById('patron-search').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const resultsContainer = document.getElementById('search-results');
+            
+            if (!term) {
+                resultsContainer.classList.add('hidden');
+                return;
+            }
+
+            const usersWithTotals = getAggregatedData();
+            const results = usersWithTotals.filter(u => u.isApproved && u.publicName.toLowerCase().includes(term));
+
+            resultsContainer.classList.remove('hidden');
+            if (results.length === 0) {
+                resultsContainer.innerHTML = `<div class="p-4 text-sm text-slate-500 text-center">No patrons found.</div>`;
+            } else {
+                resultsContainer.innerHTML = results.map(u => `
+                    <div class="flex items-center justify-between p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onclick="selectPatron('${u.id}', '${u.publicName.replace(/'/g, "\\'")}', ${u.totalLaps})">
+                        <div>
+                            <p class="font-medium text-slate-800">${u.publicName}</p>
+                            <p class="text-xs text-slate-500">Total Laps: ${u.totalLaps} | ${u.facility}</p>
+                        </div>
+                        <button class="text-blue-600 text-sm font-medium">Select</button>
+                    </div>
+                `).join('');
+            }
+        });
+
+        document.getElementById('admin-log-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const countInput = document.getElementById('admin-lap-count');
+            const count = Number(countInput.value);
+            
+            if (!selectedPatronId || !count || count <= 0) return;
+
+            const lapsRef = collection(db, 'artifacts', appId, 'public', 'data', 'laps');
+            await addDoc(lapsRef, {
+                userId: selectedPatronId,
+                count: count,
+                date: new Date().toISOString(),
+                addedBy: 'ADMIN_' + currentUser.uid
+            });
+            
+            showToast(`Added ${count} laps for the patron.`);
+            clearSelectedPatron();
+        });
+
+        const renderUI = () => {
+            renderApprovals();
+            // Update selected patron total if currently viewing one
+            if (selectedPatronId) {
+                const updatedTotal = getAggregatedData().find(u => u.id === selectedPatronId)?.totalLaps || 0;
+                document.getElementById('selected-patron-total').innerText = updatedTotal;
+            }
+        };
+
+    </script>
+</body>
+</html>
