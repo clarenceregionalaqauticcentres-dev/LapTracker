@@ -363,16 +363,28 @@
             }, 3000);
         };
 
-        // Initialize Firebase
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        // Initialize Firebase with the osftools configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBHYN7jk5en7V19pMfag6l8kG3fSjR2zYY",
+            authDomain: "osftools.firebaseapp.com",
+            projectId: "osftools",
+            storageBucket: "osftools.firebasestorage.app",
+            messagingSenderId: "42038303082",
+            appId: "1:42038303082:web:6fed53593f0e0c3d9ead13",
+            measurementId: "G-C2BTP1N5RT"
+        };
+        
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'clarence-valley-laps';
+        
+        // This is the custom path ID used for your Firestore database structure
+        const appId = 'clarence-valley-laps';
 
         // Secure Initialization Flow
         const startApp = async () => {
             try {
+                // If hosted on your own domain/GitHub, it will default to anonymous first
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
