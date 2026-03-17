@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clarence Valley Lap Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Nunito', sans-serif; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* Custom scrollbar to match the app feel */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #53a3a8; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-[#71c4c9] text-white min-h-screen flex justify-center selection:bg-white selection:text-[#53a3a8]">
+
+    <!-- Main App Container (Constrained on Desktop, full width on Mobile) -->
+    <div class="w-full max-w-md relative min-h-screen flex flex-col pb-28 pt-8 px-5">
+        
+        <!-- Header / Logo Area -->
+        <header class="text-center mb-6">
+            <h1 class="text-white text-sm font-bold tracking-[0.2em] uppercase opacity-90">Clarence Valley Council</h1>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col">
+            
+            <!-- Loading State -->
+            <div id="loading-state" class="text-center py-20 text-white/80">
+                <i data-lucide="loader-2" class="w-10 h-10 animate-spin mx-auto mb-4 text-white"></i>
+                <p class="font-bold tracking-wider uppercase">Loading Data...</p>
+            </div>
+
+            <!-- Leaderboard Tab -->
+            <div id="tab-leaderboard" class="tab-content active space-y-6">
+                
+                <!-- Title Block matching mockup -->
+                <div class="bg-[#53a3a8] rounded-3xl p-6 text-center shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-white/10">
+                    <h2 class="text-2xl font-extrabold text-white uppercase tracking-wider leading-tight">
+                        Community Lap<br>Challenge
+                    </h2>
+                </div>
+
+                <!-- Facility Filters (Styled as pills) -->
+                <div class="flex justify-center gap-2 mb-2">
+                    <button id="filter-CRAC" onclick="setFacilityFilter('CRAC')" class="px-5 py-2.5 rounded-full font-bold uppercase text-xs tracking-wider transition-all duration-300 bg-white text-[#53a3a8] shadow-md transform scale-105">
+                        CRAC
+                    </button>
+                    <button id="filter-YCP" onclick="setFacilityFilter('YCP')" class="px-5 py-2.5 rounded-full font-bold uppercase text-xs tracking-wider transition-all duration-300 bg-[#53a3a8]/50 text-white hover:bg-[#53a3a8]/70">
+                        Yamba Pool
+                    </button>
+                </div>
+                <p id="facility-desc" class="text-center text-xs font-bold text-white/80 mb-6 px-4">
+                    State-of-the-art regional facility
+                </p>
+
+                <!-- Leaderboard List -->
+                <div id="leaderboard-container">
+                    <div id="leaderboard-list" class="space-y-3">
+                        <!-- Populated via JS -->
+                    </div>
+                    <div id="leaderboard-empty" class="hidden p-8 text-center text-white/80 bg-[#53a3a8]/30 rounded-3xl border border-white/20 mt-4">
+                        <p class="font-bold uppercase tracking-wider">No laps recorded yet.</p>
+                        <p class="text-sm mt-2">Achieve your fitness goals and be the first!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Tab -->
+            <div id="tab-profile" class="tab-content">
+                
+                <!-- Auth Section (For Anonymous / Logged Out Users) -->
+                <div id="auth-section" class="hidden bg-white p-8 rounded-[2rem] shadow-xl text-[#448b90] space-y-6">
+                    
+                    <!-- Login View -->
+                    <div id="auth-login">
+                        <h2 class="text-2xl font-extrabold mb-2 uppercase tracking-wide text-center">Welcome Back</h2>
+                        <p class="text-[#53a3a8] mb-6 text-center text-sm font-bold">Log in to track your laps.</p>
+                        <form id="login-form" class="space-y-4">
+                            <div>
+                                <input type="email" id="login-email" placeholder="Email Address" class="w-full p-4 border-2 border-[#b0e0e3] rounded-2xl focus:border-[#53a3a8] outline-none font-bold text-[#448b90] placeholder-[#b0e0e3] bg-[#f8fcfc]" required>
+                            </div>
+                            <div>
+                                <input type="password" id="login-password" placeholder="Password" class="w-full p-4 border-2 border-[#b0e0e3] rounded-2xl focus:border-[#53a3a8] outline-none font-bold text-[#448b90] placeholder-[#b0e0e3] bg-[#f8fcfc]" required>
+                            </div>
+                            <button type="submit" class="w-full bg-[#53a3a8] text-white font-extrabold py-4 rounded-2xl hover:bg-[#448b90] transition-colors uppercase tracking-wider mt-2 shadow-md">
+                                Log In
+                            </button>
+                        </form>
+                        <div class="mt-6 text-center text-sm font-bold space-y-3">
+                            <p><button onclick="toggleAuthView('register')" class="text-[#53a3a8] hover:text-[#448b90] uppercase tracking-wide">Create new account</button></p>
+                            <p><button onclick="toggleAuthView('forgot')" class="text-[#b0e0e3] hover:text-[#53a3a8] uppercase tracking-wide">Forgot password?</button></p>
+                        </div>
+                    </div>
+
+                    <!-- Registration View -->
+                    <div id="auth-register" class="hidden">
+                        <h2 class="text-2xl font-extrabold mb-2 uppercase tracking-wide text-center">Join Us</h2>
+                        <p class="text-[#53a3a8] mb-6 text-center text-sm font-bold">Achieve your fitness goals!</p>
+                        <form id="register-form" class="space-y-4">
+                            <div>
+                                <input type="email" id="register-email" placeholder="Email Address" class="w-full p-4 border-2 border-[#b0e0e3] rounded-2xl focus:border-[#53a3a8] outline-none font-bold text-[#448b90] placeholder-[#b0e0e3] bg-[#f8fcfc]" required>
+                            </div>
+                            <div>
+                                <input type="password" id="register-password" placeholder="Password (Min 6 chars)" class="w-full p-4 border-2 border-[#b0e0e3] rounded-2xl focus:border-[#53a3a8] outline-none font-bold text-[#448b90] placeholder-[#b0e0e3] bg-[#f8fcfc]" minlength="6" required>
+                            </div>
+                            <div class="h-px w-full bg-[#b0e0e3]/50 my-4"></div>
+                            <div>
+                                <input type="text" id="register-name" placeholder="Display Name (e.g. Fast Fish Avi)" class="w-full p-4 border-2 border-[#b0e0e3] rounded-2xl focus:border-[#53a3a8] outline-none font-bold text-[#448b90] placeholder-[#b0e0e3] bg-[#f8fcfc]" maxlength="30" required>
+                            </div>
+                            <div>
+                                <select id="register-facility" class="w-full p-4 border-2 border-[#b0e0e3] rounded-2xl focus:border-[#53a3a8] outline-none font-bold text-[#448b90] bg-[#f8fcfc]">
+                                    <option value="CRAC">Clarence Regional Aquatic Centre</option>
+                                    <option value="YCP">Yamba Community Pool</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="w-full bg-[#53a3a8] text-white font-extrabold py-4 rounded-2xl hover:bg-[#448b90] transition-colors uppercase tracking-wider shadow-md">
+                                Sign Up
+                            </button>
+                        </form>
+                        <div class="mt-6 text-center text-sm font-bold">
+                            <button onclick="toggleAuthView('login')" class="text-[#53a3a8] hover:text-[#448b90] uppercase tracking-wide">Back to Login</button>
+                        </div>
+                    </div>
+
+                    <!-- Forgot Password View -->
+                    <div id="auth-forgot" class="hidden">
+                        <h2 class="text-2xl font-extrabold mb-2 uppercase tracking-wide text-center">Reset Password</h2>
+                        <p class="text-[#53a3a8] mb-6 text-center text-sm font-bold">We'll send you a recovery link.</p>
+                        <form id="forgot-form" class="space-y-4">
+                            <div>
+                                <input type="email" id="forgot-email" placeholder="Email Address" class="w-full p-4 border-2 border-[#b0e0e3] rounded-2xl focus:border-[#53a3a8] outline-none font-bold text-[#448b90] placeholder-[#b0e0e3] bg-[#f8fcfc]" required>
+                            </div>
+                            <button type="submit" class="w-full bg-[#53a3a8] text-white font-extrabold py-4 rounded-2xl hover:bg-[#448b90] transition-colors uppercase tracking-wider shadow-md">
+                                Send Link
+                            </button>
+                        </form>
+                        <div class="mt-6 text-center text-sm font-bold">
+                            <button onclick="toggleAuthView('login')" class="text-[#53a3a8] hover:text-[#448b90] uppercase tracking-wide">Back to Login</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Setup Profile (Hidden if profile exists) -->
+                <div id="profile-setup" class="hidden bg-white p-8 rounded-[2rem] shadow-xl text-[#448b90]">
+                    <h2 class="text-2xl font-extrabold mb-2 uppercase tracking-wide text-center">Setup Profile</h2>
+                    <p class="text-[#53a3a8] mb-6 text-center text-sm font-bold">Join the community leaderboard.</p>
+                    <form id="setup-form" class="space-y-4">
+                        <div>
+                            <input type="text" id="setup-name" placeholder="Display Name" class="w-full p-4 border-2 border-[#b0e0e3] rounded-2xl focus:border-[#53a3a8] outline-none font-bold text-[#448b90] placeholder-[#b0e0e3] bg-[#f8fcfc]" maxlength="30" required>
+                        </div>
+                        <div>
+                            <select id="setup-facility" class="w-full p-4 border-2 border-[#b0e0e3] rounded-2xl focus:border-[#53a3a8] outline-none font-bold text-[#448b90] bg-[#f8fcfc]">
+                                <option value="CRAC">Clarence Regional Aquatic Centre</option>
+                                <option value="YCP">Yamba Community Pool</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="w-full bg-[#53a3a8] text-white font-extrabold py-4 rounded-2xl hover:bg-[#448b90] transition-colors uppercase tracking-wider shadow-md">
+                            Create Profile
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Active Profile -->
+                <div id="profile-active" class="hidden space-y-6 pb-6">
+                    
+                    <!-- Log Laps Card -->
+                    <div class="bg-white p-6 rounded-[2rem] shadow-xl border-b-4 border-[#b0e0e3]">
+                        <h2 class="text-xl font-extrabold text-[#448b90] uppercase tracking-wide mb-1 text-center">Log Your Laps</h2>
+                        <p class="text-[#53a3a8] text-xs font-bold text-center mb-6 uppercase">Every lap counts!</p>
+                        
+                        <form id="log-laps-form" class="space-y-4">
+                            <input type="number" id="lap-count" placeholder="Number of Laps (e.g. 20)" min="1" max="500" class="w-full p-4 border-2 border-[#b0e0e3] rounded-2xl focus:border-[#53a3a8] outline-none font-extrabold text-xl text-[#448b90] placeholder-[#b0e0e3] bg-[#f8fcfc] text-center" required>
+                            
+                            <button type="submit" class="w-full bg-[#53a3a8] text-white font-extrabold py-4 rounded-2xl hover:bg-[#448b90] transition-colors uppercase tracking-wider shadow-md flex justify-center items-center gap-2">
+                                <i data-lucide="plus-circle" class="w-5 h-5"></i> Submit Laps
+                            </button>
+                        </form>
+
+                        <div class="mt-6 bg-[#f0f9fa] p-5 rounded-2xl border-2 border-[#b0e0e3] flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-[#53a3a8] font-extrabold uppercase tracking-wider">Your Total Laps</p>
+                                <p id="my-total-laps" class="text-4xl font-black text-[#448b90]">0</p>
+                            </div>
+                            <div class="w-16 h-16 rounded-full bg-white flex items-center justify-center border-4 border-[#53a3a8] shadow-inner">
+                                <i data-lucide="award" class="w-8 h-8 text-[#53a3a8]"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Settings Card -->
+                    <div class="bg-white p-6 rounded-[2rem] shadow-xl border-b-4 border-[#b0e0e3]">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-lg font-extrabold text-[#448b90] uppercase tracking-wide">Settings</h2>
+                            <span id="approval-badge" class="text-[10px] font-extrabold px-3 py-1.5 rounded-full uppercase tracking-wider"></span>
+                        </div>
+
+                        <form id="update-profile-form" class="space-y-4">
+                            <input type="text" id="update-name" class="w-full p-4 border-2 border-[#b0e0e3] rounded-2xl focus:border-[#53a3a8] outline-none font-bold text-[#448b90] bg-[#f8fcfc]" maxlength="30" required>
+                            
+                            <select id="update-facility" class="w-full p-4 border-2 border-[#b0e0e3] rounded-2xl focus:border-[#53a3a8] outline-none font-bold text-[#448b90] bg-[#f8fcfc]">
+                                <option value="CRAC">Clarence Regional Aquatic Centre</option>
+                                <option value="YCP">Yamba Community Pool</option>
+                            </select>
+                            
+                            <button type="submit" class="w-full bg-[#b0e0e3] text-[#448b90] font-extrabold py-3 rounded-2xl hover:bg-[#92ced2] transition-colors uppercase tracking-wider">
+                                Update Profile
+                            </button>
+                        </form>
+
+                        <div class="mt-6 pt-6 border-t-2 border-[#f0f9fa]">
+                            <button onclick="handleLogout()" class="w-full bg-red-50 text-red-500 font-extrabold py-3 rounded-2xl hover:bg-red-100 transition-colors uppercase tracking-wider flex justify-center items-center gap-2">
+                                <i data-lucide="log-out" class="w-4 h-4"></i> Sign Out
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Fixed Bottom Navigation (Mockup Style) -->
+        <nav class="fixed bottom-0 left-0 w-full flex justify-center z-50">
+            <div class="bg-white/95 backdrop-blur-md rounded-t-[2.5rem] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.15)] w-full max-w-md px-10 py-5 flex justify-between items-center pb-8 border-t-4 border-[#e6f4f5]">
+                
+                <button id="btn-tab-leaderboard" class="flex flex-col items-center gap-1 text-[#53a3a8] transition-all transform hover:scale-110" onclick="switchTab('leaderboard')">
+                    <div id="icon-bg-leaderboard" class="p-3 rounded-full bg-[#f0f9fa]">
+                        <i data-lucide="award" class="w-7 h-7"></i>
+                    </div>
+                    <span class="text-[10px] font-extrabold uppercase tracking-widest mt-1">Scores</span>
+                </button>
+                
+                <!-- Decorative center button to match the mockup's shield/logo icon layout -->
+                <div class="relative -top-6">
+                    <div class="w-16 h-16 bg-[#53a3a8] rounded-full flex items-center justify-center shadow-lg border-4 border-[#71c4c9] text-white">
+                        <i data-lucide="waves" class="w-8 h-8"></i>
+                    </div>
+                </div>
+
+                <button id="btn-tab-profile" class="flex flex-col items-center gap-1 text-[#b0e0e3] transition-all transform hover:scale-110" onclick="switchTab('profile')">
+                    <div id="icon-bg-profile" class="p-3 rounded-full hover:bg-slate-50">
+                        <i data-lucide="user" class="w-7 h-7"></i>
+                    </div>
+                    <span class="text-[10px] font-extrabold uppercase tracking-widest mt-1">Profile</span>
+                </button>
+
+            </div>
+        </nav>
+
+        <!-- Notification Toast -->
+        <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-white text-[#448b90] px-6 py-4 rounded-2xl shadow-2xl items-center gap-3 hidden transition-all duration-300 opacity-0 z-[60] border-2 border-[#b0e0e3] w-[90%] max-w-sm">
+            <i data-lucide="info" class="w-6 h-6 text-[#53a3a8] shrink-0"></i>
+            <span id="toast-msg" class="text-sm font-extrabold uppercase tracking-wide leading-tight"></span>
+        </div>
+
+    </div>
+
+    <!-- Firebase Scripts -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, doc, setDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global State
+        let currentUser = null;
+        let usersData = [];
+        let lapsData = [];
+        let currentFacilityFilter = 'CRAC';
+        
+        // UI Interaction Logic
+        window.switchTab = (tab) => {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            
+            // Update Bottom Nav Colors
+            const lbBtn = document.getElementById('btn-tab-leaderboard');
+            const profBtn = document.getElementById('btn-tab-profile');
+            const lbBg = document.getElementById('icon-bg-leaderboard');
+            const profBg = document.getElementById('icon-bg-profile');
+
+            if(tab === 'leaderboard') {
+                lbBtn.classList.replace('text-[#b0e0e3]', 'text-[#53a3a8]');
+                lbBg.classList.add('bg-[#f0f9fa]');
+                
+                profBtn.classList.replace('text-[#53a3a8]', 'text-[#b0e0e3]');
+                profBg.classList.remove('bg-[#f0f9fa]');
+            } else {
+                profBtn.classList.replace('text-[#b0e0e3]', 'text-[#53a3a8]');
+                profBg.classList.add('bg-[#f0f9fa]');
+                
+                lbBtn.classList.replace('text-[#53a3a8]', 'text-[#b0e0e3]');
+                lbBg.classList.remove('bg-[#f0f9fa]');
+            }
+        };
+
+        window.setFacilityFilter = (facility) => {
+            currentFacilityFilter = facility;
+            const cracBtn = document.getElementById('filter-CRAC');
+            const ycpBtn = document.getElementById('filter-YCP');
+            const desc = document.getElementById('facility-desc');
+
+            if (facility === 'CRAC') {
+                cracBtn.className = "px-5 py-2.5 rounded-full font-bold uppercase text-xs tracking-wider transition-all duration-300 bg-white text-[#53a3a8] shadow-md transform scale-105";
+                ycpBtn.className = "px-5 py-2.5 rounded-full font-bold uppercase text-xs tracking-wider transition-all duration-300 bg-[#53a3a8]/50 text-white hover:bg-[#53a3a8]/70";
+                desc.innerText = "State-of-the-art regional facility";
+            } else {
+                ycpBtn.className = "px-5 py-2.5 rounded-full font-bold uppercase text-xs tracking-wider transition-all duration-300 bg-white text-[#53a3a8] shadow-md transform scale-105";
+                cracBtn.className = "px-5 py-2.5 rounded-full font-bold uppercase text-xs tracking-wider transition-all duration-300 bg-[#53a3a8]/50 text-white hover:bg-[#53a3a8]/70";
+                desc.innerText = "Welcoming, heated community haven";
+            }
+            renderLeaderboard();
+        };
+
+        window.toggleAuthView = (view) => {
+            document.getElementById('auth-login').classList.add('hidden');
+            document.getElementById('auth-register').classList.add('hidden');
+            document.getElementById('auth-forgot').classList.add('hidden');
+            document.getElementById(`auth-${view}`).classList.remove('hidden');
+        };
+
+        const showToast = (msg) => {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            toast.classList.remove('hidden');
+            toast.classList.add('flex');
+            setTimeout(() => toast.classList.remove('opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => {
+                    toast.classList.add('hidden');
+                    toast.classList.remove('flex');
+                }, 300);
+            }, 3000);
+        };
+
+        // Initialize Firebase
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'clarence-valley-laps';
+
+        // Secure Initialization Flow
+        const startApp = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUser = user;
+                        document.getElementById('loading-state').classList.add('hidden');
+                        
+                        if (!document.querySelector('.tab-content.active')) {
+                            document.getElementById('tab-leaderboard').classList.add('active');
+                        }
+                        
+                        lucide.createIcons();
+                        fetchData();
+                    }
+                });
+            } catch (err) {
+                console.error("Auth initialization error:", err);
+                showToast("Connection issue detected. Please refresh.");
+            }
+        };
+
+        window.handleLogout = async () => {
+            try {
+                await signOut(auth);
+                showToast("Signed out.");
+                
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                
+                switchTab('leaderboard');
+            } catch (err) {
+                showToast("Error signing out.");
+            }
+        };
+
+        startApp();
+
+        // Data Fetching
+        let unsubscribeUsers = null;
+        let unsubscribeLaps = null;
+
+        const fetchData = () => {
+            if (!currentUser) return;
+
+            if (unsubscribeUsers) unsubscribeUsers();
+            if (unsubscribeLaps) unsubscribeLaps();
+
+            const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'lapUsers');
+            unsubscribeUsers = onSnapshot(usersRef, (snapshot) => {
+                usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderUI();
+            }, (err) => console.error("Users error:", err));
+
+            const lapsRef = collection(db, 'artifacts', appId, 'public', 'data', 'laps');
+            unsubscribeLaps = onSnapshot(lapsRef, (snapshot) => {
+                lapsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderUI();
+            }, (err) => console.error("Laps error:", err));
+        };
+
+        // Render Logic
+        const getAggregatedData = () => {
+            return usersData.map(u => {
+                const userLaps = lapsData.filter(l => l.userId === u.id);
+                const totalLaps = userLaps.reduce((sum, lap) => sum + (Number(lap.count) || 0), 0);
+                return { ...u, totalLaps };
+            });
+        };
+
+        const renderLeaderboard = () => {
+            const usersWithTotals = getAggregatedData();
+            const filteredData = usersWithTotals
+                .filter(u => u.isApproved && u.facility === currentFacilityFilter && u.totalLaps > 0)
+                .sort((a, b) => b.totalLaps - a.totalLaps);
+
+            const container = document.getElementById('leaderboard-list');
+            const emptyState = document.getElementById('leaderboard-empty');
+
+            if (filteredData.length === 0) {
+                container.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+            } else {
+                container.classList.remove('hidden');
+                emptyState.classList.add('hidden');
+                
+                // Matches the white pill styling from the mockup
+                container.innerHTML = filteredData.map((swimmer, index) => {
+                    let rankDisplay = index + 1;
+                    let rankStyle = "border-[#b0e0e3] text-[#53a3a8]";
+                    
+                    if (index === 0) rankStyle = "bg-amber-100 border-amber-300 text-amber-600";
+                    else if (index === 1) rankStyle = "bg-slate-100 border-slate-300 text-slate-500";
+                    else if (index === 2) rankStyle = "bg-amber-50 border-amber-200 text-amber-700";
+
+                    return `
+                        <div class="bg-white rounded-[1.5rem] px-5 py-4 flex items-center justify-between shadow-lg transform transition hover:scale-[1.02]">
+                            <div class="flex items-center gap-4">
+                                <div class="w-8 h-8 rounded-full border-2 ${rankStyle} flex items-center justify-center font-extrabold text-sm">
+                                    ${rankDisplay}
+                                </div>
+                                <span class="font-extrabold text-[#448b90] uppercase tracking-wider text-sm">${swimmer.publicName}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-black text-[#53a3a8] text-lg">${swimmer.totalLaps}</span>
+                                <i data-lucide="check-circle-2" class="w-5 h-5 text-[#b0e0e3]"></i>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                lucide.createIcons();
+            }
+        };
+
+        const renderProfile = () => {
+            if (!currentUser) return;
+            
+            const isEmailUser = currentUser.providerData && currentUser.providerData.some(p => p.providerId === 'password');
+            
+            if (!isEmailUser) {
+                document.getElementById('auth-section').classList.remove('hidden');
+                document.getElementById('profile-setup').classList.add('hidden');
+                document.getElementById('profile-active').classList.add('hidden');
+                return;
+            }
+
+            document.getElementById('auth-section').classList.add('hidden');
+            const profile = usersData.find(u => u.id === currentUser.uid);
+            
+            if (!profile) {
+                document.getElementById('profile-setup').classList.remove('hidden');
+                document.getElementById('profile-active').classList.add('hidden');
+            } else {
+                document.getElementById('profile-setup').classList.add('hidden');
+                document.getElementById('profile-active').classList.remove('hidden');
+                
+                // Populate update form
+                document.getElementById('update-name').value = profile.publicName || '';
+                document.getElementById('update-facility').value = profile.facility || 'CRAC';
+                
+                // Status badge
+                const badge = document.getElementById('approval-badge');
+                if (profile.isApproved) {
+                    badge.className = "bg-[#f0f9fa] text-[#53a3a8] border border-[#b0e0e3] text-[10px] font-extrabold px-3 py-1.5 rounded-full uppercase tracking-wider flex items-center gap-1";
+                    badge.innerHTML = `<i data-lucide="check" class="w-3 h-3"></i> Approved`;
+                } else {
+                    badge.className = "bg-amber-50 text-amber-600 border border-amber-200 text-[10px] font-extrabold px-3 py-1.5 rounded-full uppercase tracking-wider flex items-center gap-1";
+                    badge.innerHTML = `<i data-lucide="alert-circle" class="w-3 h-3"></i> Pending`;
+                }
+
+                // Total laps
+                const myTotal = getAggregatedData().find(u => u.id === currentUser.uid)?.totalLaps || 0;
+                document.getElementById('my-total-laps').innerText = myTotal;
+                lucide.createIcons();
+            }
+        };
+
+        const renderUI = () => {
+            renderLeaderboard();
+            renderProfile();
+        };
+
+        // Form Handlers
+        const saveProfile = async (name, facility, existingProfile) => {
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'lapUsers', currentUser.uid);
+            await setDoc(userRef, {
+                publicName: name.trim(),
+                facility: facility,
+                isApproved: existingProfile ? existingProfile.isApproved : false,
+                createdAt: serverTimestamp()
+            }, { merge: true });
+            showToast("Profile Updated! Awaiting staff review.");
+        };
+
+        document.getElementById('setup-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('setup-name').value;
+            const facility = document.getElementById('setup-facility').value;
+            saveProfile(name, facility, null);
+        });
+
+        document.getElementById('update-profile-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('update-name').value;
+            const facility = document.getElementById('update-facility').value;
+            const profile = usersData.find(u => u.id === currentUser.uid);
+            saveProfile(name, facility, profile);
+        });
+
+        // Email & Password Auth Handlers
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const name = document.getElementById('register-name').value;
+            const facility = document.getElementById('register-facility').value;
+
+            try {
+                if (currentUser) await signOut(auth);
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                
+                const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'lapUsers', userCredential.user.uid);
+                await setDoc(userRef, {
+                    publicName: name.trim(),
+                    facility: facility,
+                    isApproved: false,
+                    createdAt: serverTimestamp()
+                });
+                
+                showToast("Account created! Let's swim.");
+                document.getElementById('register-form').reset();
+            } catch (error) {
+                console.error(error);
+                showToast("Error creating account.");
+                if (!auth.currentUser) await startApp(); 
+            }
+        });
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                if (currentUser) await signOut(auth);
+                await signInWithEmailAndPassword(auth, email, password);
+                showToast("Welcome back!");
+                document.getElementById('login-form').reset();
+            } catch (error) {
+                console.error(error);
+                showToast("Invalid credentials.");
+                if (!auth.currentUser) await startApp(); 
+            }
+        });
+
+        document.getElementById('forgot-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('forgot-email').value;
+            try {
+                await sendPasswordResetEmail(auth, email);
+                showToast("Reset link sent!");
+                toggleAuthView('login');
+                document.getElementById('forgot-form').reset();
+            } catch (error) {
+                showToast("Error sending link.");
+            }
+        });
+
+        document.getElementById('log-laps-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const countInput = document.getElementById('lap-count');
+            const count = Number(countInput.value);
+            
+            if (!count || count <= 0) return;
+
+            const lapsRef = collection(db, 'artifacts', appId, 'public', 'data', 'laps');
+            await addDoc(lapsRef, {
+                userId: currentUser.uid,
+                count: count,
+                date: new Date().toISOString(),
+                addedBy: currentUser.uid
+            });
+            
+            countInput.value = '';
+            showToast(`+${count} Laps! Keep it up!`);
+        });
+
+    </script>
+</body>
+</html>
