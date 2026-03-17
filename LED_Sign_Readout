@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top Swimmers Ticker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@800;900&display=swap');
+        
+        body { 
+            font-family: 'Nunito', sans-serif; 
+            margin: 0; 
+            background-color: transparent; 
+        }
+        
+        /* Strict 320x60 dimensions for the LED display */
+        .ticker-container {
+            width: 320px;
+            height: 60px;
+            overflow: hidden;
+            background-color: #53a3a8; /* Matching the app's teal */
+            color: white;
+            position: relative;
+            border-radius: 8px; /* Slight rounding, remove if your LED software prefers sharp edges */
+        }
+
+        .ticker-track {
+            transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .ticker-slide {
+            width: 320px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            box-sizing: border-box;
+        }
+
+        .rank-badge {
+            background: white;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 900;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .swimmer-name {
+            flex-grow: 1;
+            margin: 0 12px;
+            font-size: 20px;
+            font-weight: 800;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-transform: uppercase;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .laps-count {
+            font-size: 24px;
+            font-weight: 900;
+            color: #b0e0e3;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ticker-container" id="led-ticker">
+        <div class="ticker-track" id="ticker-track">
+            <div class="ticker-slide justify-center">
+                <span class="text-sm font-bold uppercase tracking-widest text-white/80">Loading Leaders...</span>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Connected to your exact osftools Firebase project
+        const firebaseConfig = {
+            apiKey: "AIzaSyBHYN7jk5en7V19pMfag6l8kG3fSjR2zYY",
+            authDomain: "osftools.firebaseapp.com",
+            projectId: "osftools",
+            storageBucket: "osftools.firebasestorage.app",
+            messagingSenderId: "42038303082",
+            appId: "1:42038303082:web:6fed53593f0e0c3d9ead13"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const appId = 'clarence-valley-laps';
+
+        let usersData = [];
+        let lapsData = [];
+        let intervalId = null;
+
+        const updateTicker = () => {
+            const track = document.getElementById('ticker-track');
+            
+            // Calculate total laps per user
+            const usersWithTotals = usersData.map(u => {
+                const userLaps = lapsData.filter(l => l.userId === u.id);
+                const totalLaps = userLaps.reduce((sum, lap) => sum + (Number(lap.count) || 0), 0);
+                return { ...u, totalLaps };
+            });
+
+            // Filter for approved profiles and sort to find the top 3
+            const topSwimmers = usersWithTotals
+                .filter(u => u.isApproved && u.totalLaps > 0)
+                .sort((a, b) => b.totalLaps - a.totalLaps)
+                .slice(0, 3);
+
+            if (topSwimmers.length === 0) {
+                track.innerHTML = '<div class="ticker-slide justify-center"><span class="text-sm font-bold uppercase tracking-widest text-white/80">No laps logged yet!</span></div>';
+                return;
+            }
+
+            // Generate the HTML for the slides
+            track.innerHTML = topSwimmers.map((swimmer, index) => {
+                const rankDisplay = index + 1;
+                // Gold, Silver, Bronze coloring for the rank numbers
+                const rankColor = index === 0 ? "color: #d97706;" : index === 1 ? "color: #64748b;" : "color: #b45309;"; 
+                
+                return `
+                    <div class="ticker-slide">
+                        <div class="rank-badge" style="${rankColor}">#${rankDisplay}</div>
+                        <div class="swimmer-name">${swimmer.publicName}</div>
+                        <div class="laps-count">${swimmer.totalLaps}</div>
+                    </div>
+                `;
+            }).join('');
+
+            // Seamless Loop Logic: clone the first slide to the end
+            if (topSwimmers.length > 1) {
+                const firstSlideClone = track.children[0].cloneNode(true);
+                track.appendChild(firstSlideClone);
+            }
+
+            startScrollAnimation(topSwimmers.length);
+        };
+
+        const startScrollAnimation = (itemCount) => {
+            if (itemCount <= 1) return; // No animation needed for just one swimmer
+            
+            if (intervalId) clearInterval(intervalId);
+
+            const track = document.getElementById('ticker-track');
+            let currentIndex = 0;
+            
+            // Reset position
+            track.style.transition = 'none';
+            track.style.transform = `translateY(0px)`;
+
+            intervalId = setInterval(() => {
+                currentIndex++;
+                // Slide up smoothly
+                track.style.transition = 'transform 0.8s cubic-bezier(0.25, 1, 0.5, 1)';
+                track.style.transform = `translateY(-${currentIndex * 60}px)`;
+
+                // If we reach the cloned extra slide, instantly snap back to the true first slide
+                if (currentIndex === itemCount) {
+                    setTimeout(() => {
+                        track.style.transition = 'none';
+                        currentIndex = 0;
+                        track.style.transform = `translateY(0px)`;
+                    }, 800); // Must match the CSS transition time
+                }
+            }, 5000); // Wait 5 seconds before switching to the next swimmer
+        };
+
+        // Real-Time Database Listeners
+        const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'lapUsers');
+        onSnapshot(usersRef, (snapshot) => {
+            usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            if (lapsData.length > 0) updateTicker();
+        });
+
+        const lapsRef = collection(db, 'artifacts', appId, 'public', 'data', 'laps');
+        onSnapshot(lapsRef, (snapshot) => {
+            lapsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            if (usersData.length > 0) updateTicker();
+        });
+
+    </script>
+</body>
+</html>
