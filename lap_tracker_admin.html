@@ -20,27 +20,29 @@
 </head>
 <body class="bg-slate-50 text-slate-900 pb-20 min-h-screen">
 
-    <!-- Login View -->
-    <div id="view-login" class="view-content active min-h-screen flex items-center justify-center p-4">
-        <div class="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full border border-slate-200">
-            <div class="flex justify-center mb-6 text-[#53a3a8]">
-                <i data-lucide="shield-check" class="w-16 h-16"></i>
+    <!-- Login View (Wrapped to prevent CSS flex conflicts) -->
+    <div id="view-login" class="view-content active">
+        <div class="min-h-screen flex items-center justify-center p-4">
+            <div class="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full border border-slate-200">
+                <div class="flex justify-center mb-6 text-[#53a3a8]">
+                    <i data-lucide="shield-check" class="w-16 h-16"></i>
+                </div>
+                <h1 class="text-2xl font-extrabold text-center text-slate-800 mb-2 uppercase tracking-wide">Staff Portal</h1>
+                <p class="text-center text-slate-500 text-sm mb-8 font-bold">Secure access for Clarence Valley Council</p>
+                
+                <form id="admin-login-form" class="space-y-4">
+                    <div>
+                        <input type="email" id="login-email" autocomplete="username" placeholder="Work Email" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:border-[#53a3a8] outline-none font-bold text-slate-700 bg-slate-50" required>
+                    </div>
+                    <div>
+                        <input type="password" id="login-password" autocomplete="current-password" placeholder="Password" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:border-[#53a3a8] outline-none font-bold text-slate-700 bg-slate-50" required>
+                    </div>
+                    <button type="submit" class="w-full bg-[#53a3a8] text-white font-extrabold py-4 rounded-xl hover:bg-[#448b90] transition-colors uppercase tracking-wider shadow-md flex justify-center items-center gap-2">
+                        <span id="login-text">Secure Login</span>
+                        <i data-lucide="loader-2" id="login-spinner" class="w-5 h-5 animate-spin hidden"></i>
+                    </button>
+                </form>
             </div>
-            <h1 class="text-2xl font-extrabold text-center text-slate-800 mb-2 uppercase tracking-wide">Staff Portal</h1>
-            <p class="text-center text-slate-500 text-sm mb-8 font-bold">Secure access for Clarence Valley Council</p>
-            
-            <form id="admin-login-form" class="space-y-4">
-                <div>
-                    <input type="email" id="login-email" autocomplete="username" placeholder="Work Email" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:border-[#53a3a8] outline-none font-bold text-slate-700 bg-slate-50" required>
-                </div>
-                <div>
-                    <input type="password" id="login-password" autocomplete="current-password" placeholder="Password" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:border-[#53a3a8] outline-none font-bold text-slate-700 bg-slate-50" required>
-                </div>
-                <button type="submit" class="w-full bg-[#53a3a8] text-white font-extrabold py-4 rounded-xl hover:bg-[#448b90] transition-colors uppercase tracking-wider shadow-md flex justify-center items-center gap-2">
-                    <span id="login-text">Secure Login</span>
-                    <i data-lucide="loader-2" id="login-spinner" class="w-5 h-5 animate-spin hidden"></i>
-                </button>
-            </form>
         </div>
     </div>
 
@@ -333,6 +335,7 @@
                         currentUser = user;
                         isVerifiedStaff = true;
                         
+                        setLoading(false); // Reset loading spinner upon success
                         document.getElementById('view-login').classList.remove('active');
                         document.getElementById('view-dashboard').classList.remove('hidden');
                         document.getElementById('loading-state').classList.remove('hidden');
@@ -581,7 +584,8 @@
             } else {
                 listContainer.innerHTML = staffData.map(s => {
                     const profile = usersData.find(u => u.id === s.id);
-                    const displayName = profile ? profile.publicName : (s.name || "Unknown Staff Member");
+                    // Updated to use the email field you manually added in the Firebase Console
+                    const displayName = profile ? profile.publicName : (s.name || s.email || "System Admin");
                     
                     return `
                         <div class="flex items-center justify-between p-4 border-2 border-slate-100 rounded-xl bg-white shadow-sm hover:border-[#b0e0e3] transition-colors">
