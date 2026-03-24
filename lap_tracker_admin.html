@@ -58,7 +58,7 @@
                     </div>
                     <div>
                         <h1 class="text-xl font-extrabold tracking-tight uppercase">Lap Tracker Admin</h1>
-                        <p class="text-xs text-slate-300 font-bold tracking-wider">Customer Service Tools</p>
+                        <p class="text-xs text-slate-300 font-bold tracking-wider">Logged in: <span id="logged-in-user-email" class="text-white"></span></p>
                     </div>
                 </div>
                 <nav class="flex space-x-2 bg-slate-800 p-1 rounded-xl overflow-x-auto">
@@ -340,6 +340,9 @@
                         document.getElementById('view-dashboard').classList.remove('hidden');
                         document.getElementById('loading-state').classList.remove('hidden');
                         
+                        // Show current user email in header
+                        document.getElementById('logged-in-user-email').innerText = user.email;
+
                         fetchData();
                     } else {
                         // Not an authorized staff member, kick them out
@@ -593,8 +596,8 @@
                                 <p class="font-extrabold text-slate-800 uppercase tracking-wide">${displayName}</p>
                                 <p class="text-[10px] font-bold text-slate-400 tracking-widest mt-1">ID: ${s.id.substring(0, 8)}...</p>
                             </div>
-                            <button onclick="revokeStaff('${s.id}')" class="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-colors" title="Remove Access">
-                                <i data-lucide="trash-2" class="w-5 h-5"></i>
+                            <button id="btn-revoke-${s.id}" onclick="revokeStaff('${s.id}')" class="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-colors w-20 text-center font-bold text-xs" title="Remove Access">
+                                <i data-lucide="trash-2" class="w-5 h-5 mx-auto pointer-events-none"></i>
                             </button>
                         </div>
                     `;
@@ -628,13 +631,34 @@
                             <p class="font-extrabold text-slate-800 uppercase tracking-wide">${u.publicName}</p>
                             <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">${u.facility === 'CRAC' ? 'CRAC' : 'Yamba'}</p>
                         </div>
-                        <button onclick="promoteToStaff('${u.id}', '${u.publicName.replace(/'/g, "\\'")}')" class="text-white text-sm font-extrabold uppercase tracking-wider bg-[#53a3a8] hover:bg-[#448b90] px-4 py-2 rounded-lg shadow-sm transition-colors">Promote</button>
+                        <button id="btn-promote-${u.id}" onclick="promoteToStaff('${u.id}', '${u.publicName.replace(/'/g, "\\'")}')" class="text-white text-sm font-extrabold uppercase tracking-wider bg-[#53a3a8] hover:bg-[#448b90] px-4 py-2 rounded-lg shadow-sm transition-colors w-28 text-center">Promote</button>
                     </div>
                 `).join('');
             }
         });
 
         window.promoteToStaff = async (userId, name) => {
+            const btn = document.getElementById(`btn-promote-${userId}`);
+            // Force a double-click confirmation to prevent accidental promotions
+            if (btn && !btn.classList.contains('confirming')) {
+                btn.classList.add('confirming');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = 'Confirm?';
+                btn.classList.replace('bg-[#53a3a8]', 'bg-amber-500');
+                btn.classList.replace('hover:bg-[#448b90]', 'hover:bg-amber-600');
+                
+                // Reset the button if they don't click again within 3 seconds
+                setTimeout(() => {
+                    if(btn && btn.classList.contains('confirming')) {
+                        btn.classList.remove('confirming');
+                        btn.innerHTML = originalHTML;
+                        btn.classList.replace('bg-amber-500', 'bg-[#53a3a8]');
+                        btn.classList.replace('hover:bg-amber-600', 'hover:bg-[#448b90]');
+                    }
+                }, 3000);
+                return;
+            }
+
             try {
                 const staffRef = doc(db, 'artifacts', appId, 'public', 'data', 'staff', userId);
                 await setDoc(staffRef, { name: name, promotedAt: new Date().toISOString() });
@@ -652,6 +676,27 @@
                 showToast("You cannot revoke your own access.");
                 return;
             }
+
+            const btn = document.getElementById(`btn-revoke-${userId}`);
+            // Force a double-click confirmation for removing staff
+            if (btn && !btn.classList.contains('confirming')) {
+                btn.classList.add('confirming');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = 'Sure?';
+                btn.classList.add('bg-red-500', 'text-white');
+                btn.classList.remove('text-red-400', 'hover:text-red-600', 'hover:bg-red-50');
+                
+                setTimeout(() => {
+                    if(btn && btn.classList.contains('confirming')) {
+                        btn.classList.remove('confirming');
+                        btn.innerHTML = originalHTML;
+                        btn.classList.remove('bg-red-500', 'text-white');
+                        btn.classList.add('text-red-400', 'hover:text-red-600', 'hover:bg-red-50');
+                    }
+                }, 3000);
+                return;
+            }
+
             try {
                 const staffRef = doc(db, 'artifacts', appId, 'public', 'data', 'staff', userId);
                 await deleteDoc(staffRef);
