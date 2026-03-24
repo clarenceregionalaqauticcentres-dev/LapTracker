@@ -31,10 +31,10 @@
             
             <form id="admin-login-form" class="space-y-4">
                 <div>
-                    <input type="email" id="login-email" placeholder="Work Email" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:border-[#53a3a8] outline-none font-bold text-slate-700 bg-slate-50" required>
+                    <input type="email" id="login-email" autocomplete="username" placeholder="Work Email" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:border-[#53a3a8] outline-none font-bold text-slate-700 bg-slate-50" required>
                 </div>
                 <div>
-                    <input type="password" id="login-password" placeholder="Password" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:border-[#53a3a8] outline-none font-bold text-slate-700 bg-slate-50" required>
+                    <input type="password" id="login-password" autocomplete="current-password" placeholder="Password" class="w-full p-4 border-2 border-slate-200 rounded-xl focus:border-[#53a3a8] outline-none font-bold text-slate-700 bg-slate-50" required>
                 </div>
                 <button type="submit" class="w-full bg-[#53a3a8] text-white font-extrabold py-4 rounded-xl hover:bg-[#448b90] transition-colors uppercase tracking-wider shadow-md flex justify-center items-center gap-2">
                     <span id="login-text">Secure Login</span>
@@ -68,6 +68,9 @@
                     </button>
                     <button id="btn-view-settings" class="px-4 py-2 rounded-lg text-sm font-bold transition-colors hover:bg-slate-700 text-white whitespace-nowrap" onclick="switchAdminView('settings')">
                         Challenge Settings
+                    </button>
+                    <button id="btn-view-team" class="px-4 py-2 rounded-lg text-sm font-bold transition-colors hover:bg-slate-700 text-white whitespace-nowrap" onclick="switchAdminView('team')">
+                        Manage Team
                     </button>
                     <button id="btn-view-qr" class="px-4 py-2 rounded-lg text-sm font-bold transition-colors hover:bg-slate-700 text-white whitespace-nowrap" onclick="switchAdminView('qr')">
                         QR Codes
@@ -163,6 +166,34 @@
                 </div>
             </div>
 
+            <!-- Manage Team View -->
+            <div id="admin-view-team" class="view-content no-print bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+                <div class="flex items-center gap-3 mb-2">
+                    <i data-lucide="users" class="w-8 h-8 text-[#53a3a8]"></i>
+                    <h3 class="text-2xl font-extrabold uppercase text-slate-800 tracking-wide">Manage Team</h3>
+                </div>
+                <p class="text-sm text-slate-500 mb-8 font-bold">Promote existing patrons to Customer Service staff so they can access this portal.</p>
+                
+                <div class="grid md:grid-cols-2 gap-12">
+                    <div>
+                        <h4 class="font-extrabold text-lg text-[#448b90] uppercase tracking-wide mb-4">Promote Patron</h4>
+                        <div class="relative">
+                            <i data-lucide="search" class="absolute left-4 top-4 text-slate-400 w-6 h-6"></i>
+                            <input type="text" id="team-search" placeholder="Search approved patron by name..." class="w-full pl-12 p-4 border-2 border-slate-200 rounded-xl focus:border-[#53a3a8] outline-none font-bold text-slate-700 bg-slate-50">
+                        </div>
+                        <div id="team-search-results" class="mt-4 border border-slate-200 rounded-xl overflow-hidden hidden shadow-sm">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="font-extrabold text-lg text-[#448b90] uppercase tracking-wide mb-4">Current Staff Access</h4>
+                        <div id="current-staff-list" class="space-y-3">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- QR Codes View (Printable) -->
             <div id="admin-view-qr" class="view-content bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center space-y-6">
                 <h3 class="text-2xl font-extrabold uppercase text-slate-800 tracking-wide no-print">Sign-up QR Codes</h3>
@@ -211,15 +242,16 @@
     <!-- Firebase Scripts -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
+        import { getAnalytics, isSupported } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, addDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Global State
         let currentUser = null;
         let isVerifiedStaff = false;
         let usersData = [];
         let lapsData = [];
+        let staffData = [];
         let selectedPatronId = null;
 
         // UI Management
@@ -231,6 +263,7 @@
             document.getElementById('btn-view-approvals').className = `${btnClassBase} ${view === 'approvals' ? 'bg-[#53a3a8] text-white' : 'hover:bg-slate-700 text-white'}`;
             document.getElementById('btn-view-manual').className = `${btnClassBase} ${view === 'manual' ? 'bg-[#53a3a8] text-white' : 'hover:bg-slate-700 text-white'}`;
             document.getElementById('btn-view-settings').className = `${btnClassBase} ${view === 'settings' ? 'bg-[#53a3a8] text-white' : 'hover:bg-slate-700 text-white'}`;
+            document.getElementById('btn-view-team').className = `${btnClassBase} ${view === 'team' ? 'bg-[#53a3a8] text-white' : 'hover:bg-slate-700 text-white'}`;
             document.getElementById('btn-view-qr').className = `${btnClassBase} ${view === 'qr' ? 'bg-[#53a3a8] text-white' : 'hover:bg-slate-700 text-white'}`;
         };
 
@@ -273,7 +306,15 @@
         };
         
         const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
+        
+        // Safely Initialize Analytics
+        let analytics = null;
+        isSupported().then((supported) => {
+            if (supported) {
+                analytics = getAnalytics(app);
+            }
+        });
+
         const auth = getAuth(app);
         const db = getFirestore(app);
         const appId = 'clarence-valley-laps';
@@ -331,7 +372,7 @@
                 // onAuthStateChanged handles the rest
             } catch (error) {
                 console.error(error);
-                showToast("Invalid credentials.");
+                showToast("Invalid credentials or network issue.");
                 setLoading(false);
             }
         });
@@ -350,6 +391,7 @@
         let unsubscribeUsers = null;
         let unsubscribeLaps = null;
         let unsubscribeSettings = null;
+        let unsubscribeStaff = null;
 
         const fetchData = () => {
             if (!isVerifiedStaff) return;
@@ -374,11 +416,9 @@
                 if (docSnap.exists()) {
                     const data = docSnap.data();
                     
-                    // Format dates for the datetime-local input (YYYY-MM-DDThh:mm)
                     const formatForInput = (isoString) => {
                         if (!isoString) return '';
                         const d = new Date(isoString);
-                        // Adjust for local timezone offset to display correctly in input
                         d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
                         return d.toISOString().slice(0, 16);
                     };
@@ -387,6 +427,13 @@
                     if (data.endTime) document.getElementById('setting-end').value = formatForInput(data.endTime);
                 }
             }, (err) => console.error("Settings error:", err));
+
+            // Staff Access Data
+            const staffRef = collection(db, 'artifacts', appId, 'public', 'data', 'staff');
+            unsubscribeStaff = onSnapshot(staffRef, (snapshot) => {
+                staffData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderUI();
+            }, (err) => console.error("Staff error:", err));
         };
 
         // Render Logic
@@ -525,8 +572,95 @@
             }
         });
 
+        // --- Team Management Logic ---
+        const renderTeam = () => {
+            const listContainer = document.getElementById('current-staff-list');
+            
+            if (staffData.length === 0) {
+                listContainer.innerHTML = `<div class="p-6 text-sm font-bold text-slate-400 text-center uppercase tracking-widest bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">No staff found.</div>`;
+            } else {
+                listContainer.innerHTML = staffData.map(s => {
+                    const profile = usersData.find(u => u.id === s.id);
+                    const displayName = profile ? profile.publicName : (s.name || "Unknown Staff Member");
+                    
+                    return `
+                        <div class="flex items-center justify-between p-4 border-2 border-slate-100 rounded-xl bg-white shadow-sm hover:border-[#b0e0e3] transition-colors">
+                            <div>
+                                <p class="font-extrabold text-slate-800 uppercase tracking-wide">${displayName}</p>
+                                <p class="text-[10px] font-bold text-slate-400 tracking-widest mt-1">ID: ${s.id.substring(0, 8)}...</p>
+                            </div>
+                            <button onclick="revokeStaff('${s.id}')" class="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-colors" title="Remove Access">
+                                <i data-lucide="trash-2" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+                lucide.createIcons();
+            }
+        };
+
+        document.getElementById('team-search').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const resultsContainer = document.getElementById('team-search-results');
+            
+            if (!term) {
+                resultsContainer.classList.add('hidden');
+                return;
+            }
+
+            const results = usersData.filter(u => 
+                u.isApproved && 
+                u.publicName.toLowerCase().includes(term) &&
+                !staffData.some(s => s.id === u.id)
+            );
+
+            resultsContainer.classList.remove('hidden');
+            if (results.length === 0) {
+                resultsContainer.innerHTML = `<div class="p-6 text-sm font-bold text-slate-400 text-center uppercase tracking-widest bg-white">No eligible patrons found.</div>`;
+            } else {
+                resultsContainer.innerHTML = results.map(u => `
+                    <div class="flex items-center justify-between p-4 border-b border-slate-100 bg-white hover:bg-slate-50 transition-colors">
+                        <div>
+                            <p class="font-extrabold text-slate-800 uppercase tracking-wide">${u.publicName}</p>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">${u.facility === 'CRAC' ? 'CRAC' : 'Yamba'}</p>
+                        </div>
+                        <button onclick="promoteToStaff('${u.id}', '${u.publicName.replace(/'/g, "\\'")}')" class="text-white text-sm font-extrabold uppercase tracking-wider bg-[#53a3a8] hover:bg-[#448b90] px-4 py-2 rounded-lg shadow-sm transition-colors">Promote</button>
+                    </div>
+                `).join('');
+            }
+        });
+
+        window.promoteToStaff = async (userId, name) => {
+            try {
+                const staffRef = doc(db, 'artifacts', appId, 'public', 'data', 'staff', userId);
+                await setDoc(staffRef, { name: name, promotedAt: new Date().toISOString() });
+                showToast(`${name} promoted to Staff!`);
+                document.getElementById('team-search').value = '';
+                document.getElementById('team-search-results').classList.add('hidden');
+            } catch (error) {
+                showToast("Error promoting staff. Check permissions.");
+                console.error(error);
+            }
+        };
+
+        window.revokeStaff = async (userId) => {
+            if (userId === currentUser.uid) {
+                showToast("You cannot revoke your own access.");
+                return;
+            }
+            try {
+                const staffRef = doc(db, 'artifacts', appId, 'public', 'data', 'staff', userId);
+                await deleteDoc(staffRef);
+                showToast("Staff access revoked.");
+            } catch (error) {
+                showToast("Error removing staff. Check permissions.");
+                console.error(error);
+            }
+        };
+
         const renderUI = () => {
             renderApprovals();
+            renderTeam();
             if (selectedPatronId) {
                 const updatedTotal = getAggregatedData().find(u => u.id === selectedPatronId)?.totalLaps || 0;
                 document.getElementById('selected-patron-total').innerText = updatedTotal;
