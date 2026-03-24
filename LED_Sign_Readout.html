@@ -14,19 +14,52 @@
             background-color: transparent; 
         }
         
-        /* Strict 320x60 dimensions for the LED display */
+        /* Strict 320x60 dimensions for the LED display using the new Brand Blue */
         .ticker-container {
             width: 320px;
             height: 60px;
             overflow: hidden;
-            background-color: #53a3a8; /* Matching the app's teal */
+            background-color: #0d68cc; 
             color: white;
             position: relative;
-            border-radius: 8px; /* Slight rounding, remove if your LED software prefers sharp edges */
+            border-radius: 8px;
         }
 
+        /* --- Ambient Aquatic Bubbles --- */
+        .bubbles {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .bubble {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 50%;
+            bottom: -20px;
+            animation: floatUp infinite ease-in-out;
+        }
+
+        .bubble:nth-child(1) { left: 15%; width: 8px; height: 8px; animation-duration: 3s; animation-delay: 0s; }
+        .bubble:nth-child(2) { left: 45%; width: 14px; height: 14px; animation-duration: 4.5s; animation-delay: 1.5s; }
+        .bubble:nth-child(3) { left: 75%; width: 6px; height: 6px; animation-duration: 3.5s; animation-delay: 0.5s; }
+        .bubble:nth-child(4) { left: 90%; width: 10px; height: 10px; animation-duration: 4s; animation-delay: 2s; }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0) translateX(0); opacity: 0; }
+            20% { opacity: 1; }
+            50% { transform: translateY(-40px) translateX(4px); }
+            100% { transform: translateY(-80px) translateX(-4px); opacity: 0; }
+        }
+
+        /* --- Smooth Vertical Scrolling Track --- */
         .ticker-track {
-            transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+            position: relative;
+            z-index: 10;
+            /* Smooth, unhurried ease-in-out transition over 1.5 seconds */
+            transition: transform 1.5s cubic-bezier(0.4, 0.0, 0.2, 1);
         }
 
         .ticker-slide {
@@ -39,6 +72,7 @@
             box-sizing: border-box;
         }
 
+        /* Content Styling */
         .rank-badge {
             background: white;
             border-radius: 50%;
@@ -49,7 +83,7 @@
             justify-content: center;
             font-size: 18px;
             font-weight: 900;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .swimmer-name {
@@ -61,19 +95,30 @@
             overflow: hidden;
             text-overflow: ellipsis;
             text-transform: uppercase;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.2);
         }
 
+        /* Using the Brand Yellow for laps */
         .laps-count {
             font-size: 24px;
             font-weight: 900;
-            color: #b0e0e3;
+            color: #ffc600; 
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         }
     </style>
 </head>
 <body>
 
     <div class="ticker-container" id="led-ticker">
+        <!-- Background Bubbles -->
+        <div class="bubbles">
+            <div class="bubble"></div>
+            <div class="bubble"></div>
+            <div class="bubble"></div>
+            <div class="bubble"></div>
+        </div>
+
+        <!-- Scrolling Track -->
         <div class="ticker-track" id="ticker-track">
             <div class="ticker-slide justify-center">
                 <span class="text-sm font-bold uppercase tracking-widest text-white/80">Loading Leaders...</span>
@@ -85,7 +130,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Connected to your exact osftools Firebase project
         const firebaseConfig = {
             apiKey: "AIzaSyBHYN7jk5en7V19pMfag6l8kG3fSjR2zYY",
             authDomain: "osftools.firebaseapp.com",
@@ -106,14 +150,12 @@
         const updateTicker = () => {
             const track = document.getElementById('ticker-track');
             
-            // Calculate total laps per user
             const usersWithTotals = usersData.map(u => {
                 const userLaps = lapsData.filter(l => l.userId === u.id);
                 const totalLaps = userLaps.reduce((sum, lap) => sum + (Number(lap.count) || 0), 0);
                 return { ...u, totalLaps };
             });
 
-            // Filter for approved profiles and sort to find the top 3
             const topSwimmers = usersWithTotals
                 .filter(u => u.isApproved && u.totalLaps > 0)
                 .sort((a, b) => b.totalLaps - a.totalLaps)
@@ -124,11 +166,10 @@
                 return;
             }
 
-            // Generate the HTML for the slides
             track.innerHTML = topSwimmers.map((swimmer, index) => {
                 const rankDisplay = index + 1;
-                // Gold, Silver, Bronze coloring for the rank numbers
-                const rankColor = index === 0 ? "color: #d97706;" : index === 1 ? "color: #64748b;" : "color: #b45309;"; 
+                // Using Brand Orange for 3rd place, Yellow for 1st, and slate for 2nd
+                const rankColor = index === 0 ? "color: #ffc600;" : index === 1 ? "color: #64748b;" : "color: #ff5900;"; 
                 
                 return `
                     <div class="ticker-slide">
@@ -149,7 +190,7 @@
         };
 
         const startScrollAnimation = (itemCount) => {
-            if (itemCount <= 1) return; // No animation needed for just one swimmer
+            if (itemCount <= 1) return; 
             
             if (intervalId) clearInterval(intervalId);
 
@@ -162,19 +203,20 @@
 
             intervalId = setInterval(() => {
                 currentIndex++;
-                // Slide up smoothly
-                track.style.transition = 'transform 0.8s cubic-bezier(0.25, 1, 0.5, 1)';
+                
+                // Smooth vertical slide up over 1.5 seconds
+                track.style.transition = 'transform 1.5s cubic-bezier(0.4, 0.0, 0.2, 1)';
                 track.style.transform = `translateY(-${currentIndex * 60}px)`;
 
-                // If we reach the cloned extra slide, instantly snap back to the true first slide
+                // Snap back to the true first slide seamlessly
                 if (currentIndex === itemCount) {
                     setTimeout(() => {
                         track.style.transition = 'none';
                         currentIndex = 0;
                         track.style.transform = `translateY(0px)`;
-                    }, 800); // Must match the CSS transition time
+                    }, 1500); // Matches the CSS transition duration perfectly
                 }
-            }, 5000); // Wait 5 seconds before switching to the next swimmer
+            }, 6000); // Wait 6 seconds before smoothly scrolling to the next swimmer
         };
 
         // Real-Time Database Listeners
